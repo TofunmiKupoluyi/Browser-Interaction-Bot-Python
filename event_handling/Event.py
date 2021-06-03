@@ -7,6 +7,8 @@ class Event:
 
     def add_child(self, event: '__class__') -> None:
         self.children.append(event)
+        event.predecessor_events.extend(self.predecessor_events)
+        event.predecessor_events.append(self)
 
     def serialize_event(self) -> dict:
         return {"event": self.event_type, "xpath": self.xpath}

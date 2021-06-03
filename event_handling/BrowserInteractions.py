@@ -41,7 +41,7 @@ class BrowserInteractions:
     @classmethod
     def screenshot(cls, browser: Chrome, file_name: str):
         cls.wait(5)
-        browser.save_screenshot(file_name)
+        browser.save_screenshot(file_name+".png")
 
     @staticmethod
     def wait(seconds: int) -> None:

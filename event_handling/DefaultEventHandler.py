@@ -1,6 +1,7 @@
 from selenium.webdriver import Chrome
 from selenium.common.exceptions import NoSuchElementException, MoveTargetOutOfBoundsException, JavascriptException
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 from .exceptions.InteractionBotException import InteractionBotException
 from .EventHandler import EventHandler
 from .Event import Event
@@ -42,8 +43,8 @@ class DefaultEventHandler(EventHandler):
                 raise InteractionBotException
         except (MoveTargetOutOfBoundsException, JavascriptException):
             pass
-        except:
-            raise InteractionBotException
+        except Exception:
+            raise InteractionBotException from None
         finally:
             BrowserInteractions.close_extraneous_tabs(self.browser, 1)
 
@@ -53,7 +54,7 @@ class DefaultEventHandler(EventHandler):
 
         while not web_element_found:
             try:
-                element = self.browser.find_element_by_xpath(xpath)
+                element = self.browser.find_element(By.XPATH, xpath)
                 web_element_found = True
             except NoSuchElementException:
                 raise InteractionBotException

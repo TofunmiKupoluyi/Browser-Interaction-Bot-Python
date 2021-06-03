@@ -1,3 +1,4 @@
+from os import makedirs, path
 from selenium import webdriver
 from selenium.webdriver import ChromeOptions
 from collections import deque
@@ -6,6 +7,8 @@ from HTMLDocumentUtil import HTMLDocumentUtil
 from event_handling.EventHandler import EventHandler
 from event_handling.Event import Event
 from event_handling.exceptions.InteractionBotException import InteractionBotException
+from DOTFileBuilder import DOTFileBuilder
+
 
 class ChromeExecution:
     def __init__(self, url: str, event_handler: EventHandler, output_file_directory: str = None, proxy_url: str = None):
@@ -14,12 +17,15 @@ class ChromeExecution:
         self.screenshot_count = 0
         self.event_handler = event_handler
         self.chrome_options = ChromeOptions()
+        self.dot_file_builder = DOTFileBuilder(self.output_file_directory)
         self.set_default_chrome_options()
 
         if proxy_url:
             self.chrome_options.add_argument("--proxy-server="+proxy_url)
         if output_file_directory:
             self.output_file_directory = output_file_directory
+
+        self.create_directory(self.output_file_directory)
 
         self.browser = webdriver.Chrome(chrome_options=self.chrome_options)
         self.event_handler.set_browser(self.browser)
@@ -30,12 +36,17 @@ class ChromeExecution:
         self.chrome_options.add_argument("--no-sandbox")
         self.chrome_options.add_argument("--disable-popup-blocking")
 
+    def create_directory(self, output_directory: str) -> None:
+        if not path.exists(output_directory):
+            makedirs(output_directory)
+
     def screenshot(self) -> None:
         self.screenshot_count += 1
         BrowserInteractions.screenshot(self.browser, self.output_file_directory + "/" + str(self.screenshot_count))
 
     def close_tools(self) -> None:
         self.browser.close()
+        self.dot_file_builder.close()
 
     def execute(self) -> Event:
         self.url = BrowserInteractions.open_page(self.browser, self.url)
@@ -47,10 +58,12 @@ class ChromeExecution:
         event_queue.append(base_event)
 
         while event_queue:
+            has_child = False # used for dot file
             BrowserInteractions.open_page(self.browser, self.url)
             BrowserInteractions.scroll_to_top(self.browser)
             parent_event = event_queue.popleft()
 
+            print("Parent", parent_event.xpath, parent_event.event_type)
             self.event_handler.trigger_event(parent_event)
             self.screenshot()
 
@@ -67,16 +80,21 @@ class ChromeExecution:
                     parent_event.add_child(event)
                     event_queue.append(event)
                     del event_list[i]
+                    has_child = True
                     BrowserInteractions.open_page(self.browser, self.url)
                     self.event_handler.trigger_event(parent_event)
 
                 except InteractionBotException:
-                    BrowserInteractions.open_page(self.browser, self.url)
                     if self.browser.current_url != self.url:
+                        BrowserInteractions.open_page(self.browser, self.url)
                         self.event_handler.trigger_event(parent_event)
 
                 finally:
                     i -= 1
+
+            if not has_child:
+                self.dot_file_builder.add_node(parent_event.generate_full_dot_representation())
+            print()
 
         for event in event_list:
             print("{} {}".format(event.event_type, event.xpath))
