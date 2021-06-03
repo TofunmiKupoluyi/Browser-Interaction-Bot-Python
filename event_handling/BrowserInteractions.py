@@ -1,4 +1,3 @@
-from selenium import webdriver
 from selenium.webdriver import Chrome
 from selenium.common.exceptions import NoSuchWindowException
 from time import sleep
@@ -22,6 +21,18 @@ class BrowserInteractions:
     def scroll_to_top(cls, browser: Chrome):
         browser.execute_script("window.scrollTo(0, 0)")
         cls.wait(1)
+
+    @classmethod
+    def scroll_to_bottom(cls, browser: Chrome):
+        js = 'return Math.max( document.body.scrollHeight, document.body.offsetHeight,  ' \
+             'document.documentElement.clientHeight,  document.documentElement.scrollHeight,  ' \
+             'document.documentElement.offsetHeight); '
+        scroll_height = browser.execute_script(js)
+        offset = 0
+        while offset < scroll_height:
+            browser.execute_script("window.scrollTo(0, %s);" % offset)
+            cls.wait(5)
+            offset += browser.get_window_size()['height']*1/3
 
     @classmethod
     def close_extraneous_tabs(cls, browser: Chrome, limit: int):

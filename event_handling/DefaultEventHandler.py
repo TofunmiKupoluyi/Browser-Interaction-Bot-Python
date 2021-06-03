@@ -1,4 +1,4 @@
-from selenium.webdriver import Chrome
+from seleniumwire.webdriver import Chrome
 from selenium.common.exceptions import NoSuchElementException, MoveTargetOutOfBoundsException, JavascriptException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By

@@ -1,5 +1,5 @@
 from os import makedirs, path
-from selenium import webdriver
+from seleniumwire import webdriver
 from selenium.webdriver import ChromeOptions
 from collections import deque
 from event_handling.BrowserInteractions import BrowserInteractions
@@ -11,9 +11,10 @@ from DOTFileBuilder import DOTFileBuilder
 
 
 class ChromeExecution:
-    def __init__(self, url: str, event_handler: EventHandler, output_file_directory: str = None, proxy_url: str = None):
+    def __init__(self, url: str, event_handler: EventHandler, output_file_directory: str = None, proxy_url: str = None, solution: str = "original"):
         self.url = url
         self.output_file_directory = "screenshots"
+        self.solution = solution
         self.screenshot_count = 0
         self.event_handler = event_handler
         self.chrome_options = ChromeOptions()
@@ -25,10 +26,11 @@ class ChromeExecution:
         if output_file_directory:
             self.output_file_directory = output_file_directory
 
-        self.create_directory(self.output_file_directory)
-
         self.browser = webdriver.Chrome(chrome_options=self.chrome_options)
+        self.browser.request_interceptor = self.interceptor
         self.event_handler.set_browser(self.browser)
+        self.create_directory(self.output_file_directory)
+        self.trace_file = open(self.output_file_directory + "/" + "trace", "w")
 
     def set_default_chrome_options(self) -> None:
         # self.chrome_options.add_experimental_option("profile.default_content_setting_values.notifications", 2)
@@ -40,16 +42,26 @@ class ChromeExecution:
         if not path.exists(output_directory):
             makedirs(output_directory)
 
+    def interceptor(self, request):
+        request.headers['init_url'] = self.url
+        request.headers['solution'] = self.solution
+
     def screenshot(self) -> None:
         self.screenshot_count += 1
         BrowserInteractions.screenshot(self.browser, self.output_file_directory + "/" + str(self.screenshot_count))
 
+    def write_to_trace_file(self, full_event_trace: list) -> None:
+        self.trace_file.write(str(full_event_trace)+"\n")
+        self.trace_file.flush()
+
     def close_tools(self) -> None:
         self.browser.close()
         self.dot_file_builder.close()
+        self.trace_file.close()
 
     def execute(self) -> Event:
         self.url = BrowserInteractions.open_page(self.browser, self.url)
+        # BrowserInteractions.scroll_to_bottom(self.browser)
         html_document_util = HTMLDocumentUtil(self.browser)
         event_list = html_document_util.event_list
         print("No of events:", len(event_list))
@@ -65,7 +77,9 @@ class ChromeExecution:
 
             print("Parent", parent_event.xpath, parent_event.event_type)
             self.event_handler.trigger_event(parent_event)
+            self.write_to_trace_file(parent_event.serialize_full_event_trace())
             self.screenshot()
+
 
             if self.browser.current_url != self.url:
                 BrowserInteractions.open_page(self.browser, self.url)

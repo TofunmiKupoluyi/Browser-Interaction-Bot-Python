@@ -16,8 +16,8 @@ class Event:
     def serialize_full_event_trace(self) -> list:
         return_array = []
         for predecessor in self.predecessor_events:
-            return_array.add(predecessor.serialize_event())
-        return_array.add(self.serialize_event())
+            return_array.append(predecessor.serialize_event())
+        return_array.append(self.serialize_event())
         return return_array
 
     def generate_dot_string(self) -> str:
