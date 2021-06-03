@@ -18,7 +18,6 @@ class ChromeExecution:
         self.screenshot_count = 0
         self.event_handler = event_handler
         self.chrome_options = ChromeOptions()
-        self.dot_file_builder = DOTFileBuilder(self.output_file_directory)
         self.set_default_chrome_options()
 
         if proxy_url:
@@ -31,6 +30,8 @@ class ChromeExecution:
         self.event_handler.set_browser(self.browser)
         self.create_directory(self.output_file_directory)
         self.trace_file = open(self.output_file_directory + "/" + "trace", "w")
+        self.dot_file_builder = DOTFileBuilder(self.output_file_directory)
+
 
     def set_default_chrome_options(self) -> None:
         # self.chrome_options.add_experimental_option("profile.default_content_setting_values.notifications", 2)
