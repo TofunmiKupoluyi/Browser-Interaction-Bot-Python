@@ -1,4 +1,5 @@
 from os import makedirs, path
+from json import dumps
 from seleniumwire import webdriver
 from selenium.webdriver import ChromeOptions
 from collections import deque
@@ -19,17 +20,28 @@ class ChromeExecution:
         self.event_handler = event_handler
         self.chrome_options = ChromeOptions()
         self.set_default_chrome_options()
+        seleniumwire_options = {}
 
         if proxy_url:
             self.chrome_options.add_argument("--proxy-server="+proxy_url)
+            seleniumwire_options = {
+                'proxy': {
+                    'http': 'http://'+proxy_url,
+                    'https': 'https://'+proxy_url,
+                    'no_proxy': 'localhost,127.0.0.1'
+                }
+            }
+
         if output_file_directory:
             self.output_file_directory = output_file_directory
 
-        self.browser = webdriver.Chrome(chrome_options=self.chrome_options)
+        if self.solution == "original":
+            self.trace_file = open(self.output_file_directory + "/" + "trace", "w")
+
+        self.browser = webdriver.Chrome(options=self.chrome_options, seleniumwire_options=seleniumwire_options)
         self.browser.request_interceptor = self.interceptor
         self.event_handler.set_browser(self.browser)
         self.create_directory(self.output_file_directory)
-        self.trace_file = open(self.output_file_directory + "/" + "trace", "w")
         self.dot_file_builder = DOTFileBuilder(self.output_file_directory)
 
 
@@ -52,11 +64,12 @@ class ChromeExecution:
         BrowserInteractions.screenshot(self.browser, self.output_file_directory + "/" + str(self.screenshot_count))
 
     def write_to_trace_file(self, full_event_trace: list) -> None:
-        self.trace_file.write(str(full_event_trace)+"\n")
+        self.trace_file.write(dumps(full_event_trace)+"\n")
         self.trace_file.flush()
 
     def close_tools(self) -> None:
         self.browser.close()
+        self.browser.quit()
         self.dot_file_builder.close()
         self.trace_file.close()
 
@@ -84,6 +97,7 @@ class ChromeExecution:
 
             if self.browser.current_url != self.url:
                 BrowserInteractions.open_page(self.browser, self.url)
+                self.dot_file_builder.add_node(parent_event.generate_full_dot_representation())
                 continue
 
             i = len(event_list) - 1

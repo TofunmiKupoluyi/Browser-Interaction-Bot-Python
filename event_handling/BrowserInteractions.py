@@ -1,13 +1,16 @@
 from selenium.webdriver import Chrome
-from selenium.common.exceptions import NoSuchWindowException
+from selenium.common.exceptions import NoSuchWindowException, UnexpectedAlertPresentException
 from time import sleep
 
 
 class BrowserInteractions:
     @classmethod
     def open_page(cls, browser: Chrome, url: str):
-        browser.get(url)
-        cls.wait_for_page_load(browser)
+        try:
+            browser.get(url)
+            cls.wait_for_page_load(browser)
+        except UnexpectedAlertPresentException:
+            pass
         return browser.current_url
 
     @classmethod
