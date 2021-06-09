@@ -2,13 +2,14 @@ from os import makedirs, path
 from json import dumps
 from seleniumwire import webdriver
 from selenium.webdriver import ChromeOptions
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from collections import deque
-from event_handling.BrowserInteractions import BrowserInteractions
-from HTMLDocumentUtil import HTMLDocumentUtil
-from event_handling.EventHandler import EventHandler
-from event_handling.Event import Event
-from event_handling.exceptions.InteractionBotException import InteractionBotException
-from DOTFileBuilder import DOTFileBuilder
+from .event_handling.BrowserInteractions import BrowserInteractions
+from .HTMLDocumentUtil import HTMLDocumentUtil
+from .event_handling.EventHandler import EventHandler
+from .event_handling.Event import Event
+from .event_handling.exceptions.InteractionBotException import InteractionBotException
+from .DOTFileBuilder import DOTFileBuilder
 
 
 class ChromeExecution:
@@ -18,6 +19,7 @@ class ChromeExecution:
         self.solution = solution
         self.screenshot_count = 0
         self.event_handler = event_handler
+        self.logs = set()
         self.chrome_options = ChromeOptions()
         self.set_default_chrome_options()
         seleniumwire_options = {}
@@ -35,21 +37,26 @@ class ChromeExecution:
         if output_file_directory:
             self.output_file_directory = output_file_directory
 
+        self.create_directory(self.output_file_directory)
         if self.solution == "original":
             self.trace_file = open(self.output_file_directory + "/" + "trace", "w")
 
-        self.browser = webdriver.Chrome(options=self.chrome_options, seleniumwire_options=seleniumwire_options)
+        d = DesiredCapabilities.CHROME
+        d['goog:loggingPrefs'] = { 'browser':'ALL' }
+        self.browser = webdriver.Chrome(options=self.chrome_options, seleniumwire_options=seleniumwire_options, desired_capabilities=d)
         self.browser.request_interceptor = self.interceptor
         self.event_handler.set_browser(self.browser)
-        self.create_directory(self.output_file_directory)
         self.dot_file_builder = DOTFileBuilder(self.output_file_directory)
 
 
     def set_default_chrome_options(self) -> None:
         # self.chrome_options.add_experimental_option("profile.default_content_setting_values.notifications", 2)
+        mobile_emulation = { "deviceName": "iPhone X" }
+        self.chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
         self.chrome_options.add_argument("--ignore-certificate-errors")
         self.chrome_options.add_argument("--no-sandbox")
         self.chrome_options.add_argument("--disable-popup-blocking")
+        self.chrome_options.add_argument("--headless")
 
     def create_directory(self, output_directory: str) -> None:
         if not path.exists(output_directory):
@@ -66,6 +73,10 @@ class ChromeExecution:
     def write_to_trace_file(self, full_event_trace: list) -> None:
         self.trace_file.write(dumps(full_event_trace)+"\n")
         self.trace_file.flush()
+
+    def get_logs(self) -> None:
+        for log in self.browser.get_log('browser'):
+            self.logs.add(log.get('message', ''))
 
     def close_tools(self) -> None:
         self.browser.close()
@@ -92,8 +103,8 @@ class ChromeExecution:
             print("Parent", parent_event.xpath, parent_event.event_type)
             self.event_handler.trigger_event(parent_event)
             self.write_to_trace_file(parent_event.serialize_full_event_trace())
-            self.screenshot()
-
+            self.get_logs()
+            # self.screenshot()
 
             if self.browser.current_url != self.url:
                 BrowserInteractions.open_page(self.browser, self.url)
