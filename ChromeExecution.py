@@ -1,4 +1,5 @@
-from os import makedirs, path
+from os import makedirs, path, getcwd
+from shutil import rmtree
 from json import dumps
 from seleniumwire import webdriver
 from selenium.webdriver import ChromeOptions
@@ -15,7 +16,9 @@ from .DOTFileBuilder import DOTFileBuilder
 class ChromeExecution:
     def __init__(self, url: str, event_handler: EventHandler, output_file_directory: str = None, proxy_url: str = None, solution: str = "original"):
         self.url = url
-        self.output_file_directory = "screenshots"
+        self.output_file_directory = "screenshots" if output_file_directory is None else output_file_directory
+        self.create_directory(self.output_file_directory)
+
         self.solution = solution
         self.screenshot_count = 0
         self.event_handler = event_handler
@@ -34,10 +37,6 @@ class ChromeExecution:
                 }
             }
 
-        if output_file_directory:
-            self.output_file_directory = output_file_directory
-
-        self.create_directory(self.output_file_directory)
         if self.solution == "original":
             self.trace_file = open(self.output_file_directory + "/" + "trace", "w")
 
@@ -57,6 +56,7 @@ class ChromeExecution:
         self.chrome_options.add_argument("--no-sandbox")
         self.chrome_options.add_argument("--disable-popup-blocking")
         self.chrome_options.add_argument("--headless")
+        self.chrome_options.add_argument("--user-data-dir={}".format(self.output_file_directory+"/chrome_data"))
 
     def create_directory(self, output_directory: str) -> None:
         if not path.exists(output_directory):
@@ -78,9 +78,22 @@ class ChromeExecution:
         for log in self.browser.get_log('browser'):
             self.logs.add(log.get('message', ''))
 
+    def __close_browser(self):
+        try:
+            self.browser.close()
+            self.browser.quit()
+        except:
+            pass
+
+    def remove_chrome_data(self):
+        try:
+            rmtree(self.output_file_directory+"/chrome_data")
+        except:
+            pass
+
     def close_tools(self) -> None:
-        self.browser.close()
-        self.browser.quit()
+        self.__close_browser()
+        self.remove_chrome_data()
         self.dot_file_builder.close()
         self.trace_file.close()
 
